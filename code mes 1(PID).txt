@@ -1,0 +1,144 @@
+#define irleft 10
+#define irright A7
+#define ltrig 12
+#define lecho 11
+#define rtrig A0
+#define recho A1
+#define mtrig 2
+#define mecho 4
+#define in1 8
+#define in2 6
+#define in3 9
+#define in4 7
+#define enA 5
+#define enB 3
+#define out5 A6
+#define out4 A5
+#define out3 A4
+#define out2 A3
+#define out1 A2
+
+int ir1,ir2,ir3,ir4,ir5;      // Variable to store data from IR sensors
+
+int black=1;                  // Black line means Ouput of sensor = 0
+int white=0;                  // White line means Ouput of sensor = 1
+bool line=black; 
+
+int normal_speed=90;
+int allowed_max_speed=130;
+
+int mlSpeed = 0;
+int mrSpeed = 0;
+int position = 0;
+int error = 0;
+int lasterror = 0;
+int goal=2000;
+
+// PID algo
+int P, D, I ,PIDvalue;
+float Kp = 0.031;
+float Kd = 0.093;
+float Ki = 0.001 ;
+
+int M1 = normal_speed+9;  //base motor speeds
+int M2 = normal_speed;
+
+int m1Speed = 0;
+int m2Speed = 0;
+
+void findpostion();
+void move(int lspeed,int rspeed);
+
+void setup() {
+  pinMode(out1,INPUT);              // Ouput from IR sensor
+  pinMode(out2,INPUT);              // Ouput from IR sensor
+  pinMode(out3,INPUT);              // Ouput from IR sensor
+  pinMode(out4,INPUT);              // Ouput from IR sensor
+  pinMode(out5,INPUT);              // Ouput from IR sensor
+
+  pinMode(in1, OUTPUT);             // CounterClockwise Motor A
+  pinMode(in2, OUTPUT);             // Clockwise Motor A
+  pinMode(in3, OUTPUT);             // CounterClockwise Motor B
+  pinMode(in4, OUTPUT);             // Clockwise Motor B
+  pinMode(enA, OUTPUT);             // Enable Ouputs for Motor A (PWM)
+  pinMode(enB, OUTPUT);             // Enable Ouputs for Motor B (PWM)
+  Serial.begin(9600);               // initialize serial monitor
+  
+  delay(10);
+}
+void loop() {
+  findpostion();
+  // Serial.print(" | position");
+  // Serial.print(position);
+
+  error = position - goal;
+  P = error;
+  I = I + error;
+  D = error-lasterror;
+  PIDvalue = Kp*P + Kd*D + Ki*I;
+  Serial.print(" | PIDvalue ");
+  Serial.print(PIDvalue);
+  lasterror = error;
+  mlSpeed = M1 - PIDvalue;  // M1 and M2 are base motor speeds.
+  mrSpeed = M2 + PIDvalue;
+  Serial.print(" | M_R ");
+  Serial.print(mrSpeed);
+  Serial.print(" | M_L ");
+  Serial.println(mlSpeed);
+  if (mlSpeed < 0)  //keep Speed to 0 or above
+    mlSpeed = 0;
+  if (mrSpeed < 0)
+    mrSpeed = 0;
+  if (mlSpeed > allowed_max_speed)  //maximum allowed value
+    mlSpeed = allowed_max_speed;
+  if (mrSpeed > allowed_max_speed)  //maximum allowed value
+    mrSpeed = allowed_max_speed;
+  move(mlSpeed, mrSpeed);
+}
+void findpostion(){
+  ir1=analogRead(out1);    //most left
+  ir2=analogRead(out2);    //most mid left
+  ir3=analogRead(out3);    //most mid
+  ir4=analogRead(out4);    //most mid right
+  ir5=analogRead(out5);    //most right
+if(ir1>200)
+  ir1=white;
+else
+  ir1=black;
+if(ir2>200)
+  ir2=white;
+else
+  ir2=black;
+if(ir3>200)
+  ir3=white;
+else
+  ir3=black;
+if(ir4>200)
+  ir4=white;
+else
+  ir4=black;
+if(ir5>200)
+  ir5=white;
+else
+  ir5=black;
+// Print IR sensor values of Serial Monitor :-
+  // Serial.print("IR 1 = ");
+  // Serial.print(ir1);
+  // Serial.print(" | IR 2 = ");
+  // Serial.print(ir2);
+  // Serial.print(" | IR 3 = ");
+  // Serial.print(ir3);
+  // Serial.print(" | IR 4 = ");
+  // Serial.print(ir4);
+  // Serial.print(" | IR 5 = ");
+  // Serial.print(ir5);
+  position = (0*ir1 + 1000*ir2 + 2000*ir3 + 3000*ir4 + 4000*ir5) / (ir1 + ir2 + ir3 + ir4 + ir5);
+}
+void move(int L, int R) {
+  analogWrite(enA,L);
+  analogWrite(enB,R); 
+  digitalWrite(in1, HIGH);
+  digitalWrite(in3, HIGH);
+  digitalWrite(in2, LOW);
+  digitalWrite(in4, LOW);  
+}
